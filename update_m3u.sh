@@ -6,8 +6,21 @@ URL="https://ipfs.io/ipns/k2k4r8oqlcjxsritt5mczkcn4mmvcmymbqw7113fz2flkrerfwfps0
 # Archivo de salida
 OUTPUT="/iptv/listaNewEra.m3u"
 
-# Descargar y cambiar el puerto
-curl -s "$URL" | sed 's/127.0.0.1:6878/Orchestrator:8000/g' > "$OUTPUT"
-
+# Descargar y modificar
+curl -s "$URL" | awk '
+BEGIN {chno=1}
+{
+  if ($0 ~ /^#EXTINF:/) {
+    # Si ya existe tvg-chno= lo reemplaza, si no, lo agrega
+    if ($0 ~ /tvg-chno="/) {
+      sub(/tvg-chno="[0-9]*"/, "tvg-chno=\"" chno "\"")
+    } else {
+      sub(/#EXTINF:-1/, "#EXTINF:-1 tvg-chno=\"" chno "\"")
+    }
+    chno++
+  }
+  gsub(/127\.0\.0\.1:6878/, "Orchestrator:8000")
+  print
+}' > "$OUTPUT"
 
 echo "Archivo modificado guardado en: $OUTPUT"
