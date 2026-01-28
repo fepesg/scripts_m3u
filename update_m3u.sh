@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # URL origen
-URL="https://raw.githubusercontent.com/fepesg/scripts_m3u/refs/heads/main/lista.m3u"
+URL="https://ipfs.io/ipns/k2k4r8oqlcjxsritt5mczkcn4mmvcmymbqw7113fz2flkrerfwfps004/data/listas/lista_fuera_iptv.m3u"
 
 # Archivo de salida
 OUTPUT="/iptv/listaNewEra.m3u"
