@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # URL origen
-URL="https://ipfs.io/ipns/k2k4r8oqlcjxsritt5mczkcn4mmvcmymbqw7113fz2flkrerfwfps004/data/listas/lista_fuera_iptv.m3u"
+URL="https://ipfs.io/ipns/k2k4r8lm8tkmuxbc8lkmq1in3v0oya1p6pe9o5bu0hu30br5ko08k2gb/data/listas/lista_fuera_iptv.m3u"
 
 # Archivo de salida
 OUTPUT="/iptv/listaNewEra.m3u"
