@@ -1,7 +1,12 @@
 #!/bin/bash
 
+set -e
+
 # URL origen
 URL="https://ipfs.io/ipns/k2k4r8lm8tkmuxbc8lkmq1in3v0oya1p6pe9o5bu0hu30br5ko08k2gb/data/listas/lista_iptv.m3u"
+
+# Host AceStream (tu contenedor)
+ACESTREAM_HOST="Orchestrator:8000"
 
 # Archivo de salida
 OUTPUT="/iptv/listaNewEra.m3u"
@@ -10,7 +15,9 @@ OUTPUT="/iptv/listaNewEra.m3u"
 TMPFILE=$(mktemp)
 
 echo "Descargando lista..."
-curl -s "$URL" -o "$TMPFILE"
+echo "URL usada: [$URL]"
+
+curl -L --fail --silent --show-error "$URL" -o "$TMPFILE"
 
 if [ ! -s "$TMPFILE" ]; then
     echo "Error: No se pudo descargar la lista o está vacía"
@@ -20,22 +27,20 @@ fi
 
 echo "Procesando..."
 
-awk '
+awk -v host="$ACESTREAM_HOST" '
 BEGIN { chno = 1; pending = 0 }
 
 # ============================================================
-# PRIMER PASO: contar cuántas veces aparece cada nombre limpio
+# PRIMER PASO: contar nombres
 # ============================================================
 NR == FNR {
     if ($0 ~ /^#EXTINF:/) {
-        # Extraer todo lo que hay después de la primera coma
         comma_pos = index($0, ",")
         name = substr($0, comma_pos + 1)
-        gsub(/^[ \t]+|[ \t]+$/, "", name)   # trim
+        gsub(/^[ \t]+|[ \t]+$/, "", name)
 
-        # Eliminar sufijo " XXXX --> FUENTE" (4 hex chars + flecha + texto)
-        sub(/ [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F] -->.*$/, "", name)
-        gsub(/^[ \t]+|[ \t]+$/, "", name)   # trim de nuevo
+        sub(/ [0-9a-fA-F]{4} -->.*$/, "", name)
+        gsub(/^[ \t]+|[ \t]+$/, "", name)
 
         count[name]++
     }
@@ -43,41 +48,68 @@ NR == FNR {
 }
 
 # ============================================================
-# SEGUNDO PASO: generar el archivo de salida
+# SEGUNDO PASO: generar salida limpia
 # ============================================================
 {
     if ($0 ~ /^#EXTINF:/) {
         saved_extinf = $0
 
-        # Extraer nombre limpio (mismo proceso que en el primer paso)
         comma_pos = index($0, ",")
         clean_name = substr($0, comma_pos + 1)
         gsub(/^[ \t]+|[ \t]+$/, "", clean_name)
-        sub(/ [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F] -->.*$/, "", clean_name)
+
+        sub(/ [0-9a-fA-F]{4} -->.*$/, "", clean_name)
         gsub(/^[ \t]+|[ \t]+$/, "", clean_name)
 
         saved_clean = clean_name
         saved_dup   = (count[clean_name] > 1)
         pending     = 1
 
-    } else if (pending && $0 ~ /getstream\?id=/) {
-        url = $0
+    } else if (pending) {
 
-        # Extraer el hash ID de acestream
-        ace_id = url
-        sub(/.*[?&]id=/, "", ace_id)
-        sub(/[^0-9a-fA-F].*$/, "", ace_id)   # limpiar lo que haya tras el hash
+        url = $0
+        ace_id = ""
+
+        # -------------------------------
+        # Detectar formato
+        # -------------------------------
+
+        # acestream://HASH
+        if (url ~ /^acestream:\/\//) {
+            ace_id = url
+            sub(/acestream:\/\//, "", ace_id)
+        }
+
+        # getstream?id=HASH
+        else if (url ~ /getstream\?id=/) {
+            ace_id = url
+            sub(/.*[?&]id=/, "", ace_id)
+        }
+
+        # cualquier cosa con id=
+        else if (url ~ /id=/) {
+            ace_id = url
+            sub(/.*id=/, "", ace_id)
+        }
+
+        # limpiar basura
+        sub(/[^0-9a-fA-F].*$/, "", ace_id)
+
+        # validar hash
+        if (length(ace_id) < 10) {
+            pending = 0
+            next
+        }
+
         last4 = substr(ace_id, length(ace_id) - 3, 4)
 
-        # Nombre final: con sufijo si hay duplicados, limpio si es único
         out_name = saved_dup ? (saved_clean " " last4) : saved_clean
 
-        # Reconstruir la línea #EXTINF con el nuevo nombre
         comma_pos = index(saved_extinf, ",")
         attr_part = substr(saved_extinf, 1, comma_pos - 1)
         line = attr_part ", " out_name
 
-        # Añadir o reemplazar tvg-chno
+        # tvg-chno
         if (line ~ /tvg-chno="/) {
             sub(/tvg-chno="[0-9]*"/, "tvg-chno=\"" chno "\"", line)
         } else {
@@ -85,9 +117,10 @@ NR == FNR {
         }
         chno++
 
-        # Reemplazar IP en la línea EXTINF y en la URL
-        gsub(/127\.0\.0\.1:6878/, "Orchestrator:8000", line)
-        gsub(/127\.0\.0\.1:6878/, "Orchestrator:8000", url)
+        # -------------------------------
+        # GENERAR URL FINAL VÁLIDA
+        # -------------------------------
+        url = "http://" host "/ace/getstream?id=" ace_id
 
         print line
         print url
@@ -95,12 +128,11 @@ NR == FNR {
         pending = 0
 
     } else {
-        # Cabeceras, líneas en blanco, etc.
-        gsub(/127\.0\.0\.1:6878/, "Orchestrator:8000")
         print
     }
 }
 ' "$TMPFILE" "$TMPFILE" > "$OUTPUT"
 
 rm -f "$TMPFILE"
+
 echo "Listo. Archivo guardado en: $OUTPUT"
