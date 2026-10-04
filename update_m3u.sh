@@ -17,8 +17,7 @@ TMPFILE=$(mktemp)
 echo "Descargando lista..."
 echo "URL usada: [$URL]"
 
-curl -L --fail --silent --show-error "$URL" -o "$TMPFILE"
-
+curl -L --fail --silent --show-error -A "Mozilla/5.0" "$URL" -o "$TMPFILE"
 if [ ! -s "$TMPFILE" ]; then
     echo "Error: No se pudo descargar la lista o está vacía"
     rm -f "$TMPFILE"
