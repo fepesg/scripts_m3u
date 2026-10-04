@@ -3,7 +3,7 @@
 set -e
 
 # URL origen
-URL="https://k2k4r8lm8tkmuxbc8lkmq1in3v0oya1p6pe9o5bu0hu30br5ko08k2gb.ipns.inbrowser.link/data/listas/lista_iptv.m3u"
+URL="https://ipfs.io/ipns/k2k4r8lm8tkmuxbc8lkmq1in3v0oya1p6pe9o5bu0hu30br5ko08k2gb/data/listas/lista_iptv.m3u"
 
 # Host AceStream (tu contenedor)
 ACESTREAM_HOST="Orchestrator:8000"
