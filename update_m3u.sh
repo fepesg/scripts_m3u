@@ -2,8 +2,9 @@
 
 set -e
 
-# URL origen
-URL="https://ipfs.io/ipns/k2k4r8lm8tkmuxbc8lkmq1in3v0oya1p6pe9o5bu0hu30br5ko08k2gb/data/listas/lista_iptv.m3u"
+# Origen: lista publicada en IPNS, servida por la pasarela de tu Kubo
+KEY=k2k4r8lm8tkmuxbc8lkmq1in3v0oya1p6pe9o5bu0hu30br5ko08k2gb
+URL="http://nswokk8co8kwo4ggs4o04o0k.88.21.89.110.sslip.io/ipns/$KEY/data/listas/lista_iptv.m3u"
 
 # Host AceStream (tu contenedor)
 ACESTREAM_HOST="Orchestrator:8000"
@@ -11,22 +12,19 @@ ACESTREAM_HOST="Orchestrator:8000"
 # Archivo de salida
 OUTPUT="/iptv/listaNewEra.m3u"
 
-# Archivo temporal
+# Archivos temporales (se borran siempre al salir, con o sin error)
 TMPFILE=$(mktemp)
+OUT_TMP=$(mktemp)
+trap 'rm -f "$TMPFILE" "$OUT_TMP"' EXIT
 
 echo "Descargando lista..."
 echo "URL usada: [$URL]"
-#nuevo
-if ! head -1 "$TMPFILE" | grep -q '^#EXTM3U'; then
-    echo "Error: la descarga no es una lista M3U (¿HTML de la pasarela?)"
-    rm -f "$TMPFILE"
-    exit 1
-fi
 
-curl -L --fail --silent --show-error -A "Mozilla/5.0" "$URL" -o "$TMPFILE"
-if [ ! -s "$TMPFILE" ]; then
-    echo "Error: No se pudo descargar la lista o está vacía"
-    rm -f "$TMPFILE"
+curl -sL --fail -m 180 "$URL" -o "$TMPFILE" || true
+
+# Validar que lo descargado es un M3U de verdad (no vacío, no HTML)
+if ! head -c 200 "$TMPFILE" | grep -q '#EXTM3U'; then
+    echo "Error: la descarga no es una lista M3U válida"
     exit 1
 fi
 
@@ -136,7 +134,19 @@ NR == FNR {
         print
     }
 }
-' "$TMPFILE" "$TMPFILE" > "$OUTPUT"
+' "$TMPFILE" "$TMPFILE" > "$OUT_TMP"
+
+# Comprobar que el resultado tiene canales antes de reemplazar la lista buena
+if ! grep -q '^#EXTINF' "$OUT_TMP"; then
+    echo "Error: el resultado no contiene canales, se conserva la lista anterior"
+    exit 1
+fi
+
+# mktemp crea el archivo con permisos 600; los dejamos legibles para Emby
+chmod 644 "$OUT_TMP"
+mv "$OUT_TMP" "$OUTPUT"
+
+echo "Listo. Archivo guardado en: $OUTPUT"
 
 rm -f "$TMPFILE"
 
