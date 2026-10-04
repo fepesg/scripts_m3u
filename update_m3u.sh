@@ -16,6 +16,12 @@ TMPFILE=$(mktemp)
 
 echo "Descargando lista..."
 echo "URL usada: [$URL]"
+#nuevo
+if ! head -1 "$TMPFILE" | grep -q '^#EXTM3U'; then
+    echo "Error: la descarga no es una lista M3U (¿HTML de la pasarela?)"
+    rm -f "$TMPFILE"
+    exit 1
+fi
 
 curl -L --fail --silent --show-error -A "Mozilla/5.0" "$URL" -o "$TMPFILE"
 if [ ! -s "$TMPFILE" ]; then
