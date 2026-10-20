@@ -3,8 +3,8 @@
 set -e
 
 # Origen: lista publicada en IPNS, servida por la pasarela de tu Kubo
-KEY=k2k4r8lm8tkmuxbc8lkmq1in3v0oya1p6pe9o5bu0hu30br5ko08k2gb
-URL="http://nswokk8co8kwo4ggs4o04o0k.88.21.89.110.sslip.io/ipns/$KEY/data/listas/lista_iptv.m3u"
+KEY=k51qzi5uqu5di462t7j4vu4akwfhvtjhy88qbupktvoacqfqe9uforjvhyi4wr
+URL="http://nswokk8co8kwo4ggs4o04o0k.88.21.89.110.sslip.io/ipns/$KEY/hashes.m3u"
 
 # Host AceStream (tu contenedor)
 ACESTREAM_HOST="Orchestrator:8000"
